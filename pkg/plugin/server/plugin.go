@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	APIVersion = "0.1.0"
+	APIVersion = "0.2.0"
 
 	OpLogin         = "Login"
 	OpNewProxy      = "NewProxy"
@@ -34,4 +34,7 @@ type Plugin interface {
 	Name() string
 	IsSupport(op string) bool
 	Handle(ctx context.Context, op string, content any) (res *Response, retContent any, err error)
+	// FailAction returns the configured behavior when the plugin is
+	// unreachable: "allow" to pass through, anything else to reject.
+	FailAction() string
 }

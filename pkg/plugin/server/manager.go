@@ -253,6 +253,10 @@ func (m *Manager) NewUserConn(content *NewUserConnContent) (*NewUserConnContent,
 		res, retContent, err = p.Handle(ctx, OpNewUserConn, *content)
 		if err != nil {
 			xl.Infof("send NewUserConn request to plugin [%s] error: %v", p.Name(), err)
+			if p.FailAction() == "allow" {
+				xl.Infof("plugin [%s] unreachable, failAction=allow, passing through", p.Name())
+				continue
+			}
 			return nil, errors.New("send NewUserConn request to plugin error")
 		}
 		if res.Reject {

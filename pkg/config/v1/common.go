@@ -128,6 +128,10 @@ type HTTPPluginOptions struct {
 	Path      string   `json:"path"`
 	Ops       []string `json:"ops"`
 	TLSVerify bool     `json:"tlsVerify,omitempty"`
+	// FailAction defines the behavior when the plugin is unreachable.
+	// "reject" (default): reject the connection;
+	// "allow": allow the connection to pass through.
+	FailAction string `json:"failAction,omitempty"`
 }
 
 type HeaderOperations struct {

@@ -68,6 +68,13 @@ func (p *httpPlugin) IsSupport(op string) bool {
 	return slices.Contains(p.options.Ops, op)
 }
 
+func (p *httpPlugin) FailAction() string {
+	if p.options.FailAction == "" {
+		return "reject"
+	}
+	return p.options.FailAction
+}
+
 func (p *httpPlugin) Handle(ctx context.Context, op string, content any) (*Response, any, error) {
 	r := &Request{
 		Version: APIVersion,

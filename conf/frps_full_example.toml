@@ -161,9 +161,13 @@ name = "user-manager"
 addr = "127.0.0.1:9000"
 path = "/handler"
 ops = ["Login"]
+# failAction specifies the behavior when the plugin is unreachable.
+# "reject" (default): reject the request; "allow": pass through.
+# failAction = "allow"
 
 [[httpPlugins]]
 name = "port-manager"
 addr = "127.0.0.1:9001"
 path = "/handler"
 ops = ["NewProxy"]
+# failAction = "allow"
