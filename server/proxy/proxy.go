@@ -150,7 +150,7 @@ func (pxy *BaseProxy) GetWorkConnFromPool(src, dst net.Addr) (workConn net.Conn,
 			dstAddr, dstPortStr, _ = net.SplitHostPort(dst.String())
 			dstPort, _ = strconv.ParseUint(dstPortStr, 10, 16)
 		}
-		err = msg.WriteMsg(workConn, &msg.StartWorkConn{
+		err := msg.WriteMsg(workConn, &msg.StartWorkConn{
 			ProxyName: pxy.GetName(),
 			SrcAddr:   srcAddr,
 			SrcPort:   uint16(srcPort),
@@ -161,7 +161,6 @@ func (pxy *BaseProxy) GetWorkConnFromPool(src, dst net.Addr) (workConn net.Conn,
 		if err != nil {
 			xl.Warnf("failed to send message to work connection from pool: %v, times: %d", err, i)
 			workConn.Close()
-			workConn = nil
 		} else {
 			break
 		}
@@ -172,36 +171,6 @@ func (pxy *BaseProxy) GetWorkConnFromPool(src, dst net.Addr) (workConn net.Conn,
 		return
 	}
 	return
-}
-
-// startVisitorListener sets up a VisitorManager listener for visitor-based proxies (STCP, SUDP).
-func (pxy *BaseProxy) startVisitorListener(secretKey string, allowUsers []string, proxyType string) error {
-	// if allowUsers is empty, only allow same user from proxy
-	if len(allowUsers) == 0 {
-		allowUsers = []string{pxy.GetUserInfo().User}
-	}
-	listener, err := pxy.rc.VisitorManager.Listen(pxy.GetName(), secretKey, allowUsers)
-	if err != nil {
-		return err
-	}
-	pxy.listeners = append(pxy.listeners, listener)
-	pxy.xl.Infof("%s proxy custom listen success", proxyType)
-	pxy.startCommonTCPListenersHandler()
-	return nil
-}
-
-// buildDomains constructs a list of domains from custom domains and subdomain configuration.
-func (pxy *BaseProxy) buildDomains(customDomains []string, subDomain string) []string {
-	domains := make([]string, 0, len(customDomains)+1)
-	for _, d := range customDomains {
-		if d != "" {
-			domains = append(domains, d)
-		}
-	}
-	if subDomain != "" {
-		domains = append(domains, subDomain+"."+pxy.serverCfg.SubDomainHost)
-	}
-	return domains
 }
 
 // startCommonTCPListenersHandler start a goroutine handler for each listener.
@@ -259,6 +228,14 @@ func (pxy *BaseProxy) handleUserTCPConnection(userConn net.Conn) {
 		xl.Warnf("the user conn [%s] was rejected, err:%v", content.RemoteAddr, err)
 		return
 	}
+	defer func() {
+		_ = rc.PluginManager.CloseUserConn(&plugin.CloseUserConnContent{
+			User:       content.User,
+			ProxyName:  content.ProxyName,
+			ProxyType:  content.ProxyType,
+			RemoteAddr: content.RemoteAddr,
+		})
+	}()
 
 	// try all connections from the pool
 	workConn, err := pxy.GetWorkConnFromPool(userConn.RemoteAddr(), userConn.LocalAddr())
@@ -294,12 +271,13 @@ func (pxy *BaseProxy) handleUserTCPConnection(userConn net.Conn) {
 
 	name := pxy.GetName()
 	proxyType := cfg.Type
+	userRemoteAddr := userConn.RemoteAddr().String()
 	metrics.Server.OpenConnection(name, proxyType)
 	inCount, outCount, _ := libio.Join(local, userConn)
 	metrics.Server.CloseConnection(name, proxyType)
 	metrics.Server.AddTrafficIn(name, proxyType, inCount)
 	metrics.Server.AddTrafficOut(name, proxyType, outCount)
-	xl.Debugf("join connections closed")
+	xl.Debugf("join connections closed, userConn(r[%s])", userRemoteAddr)
 }
 
 type Options struct {
